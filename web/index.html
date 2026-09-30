@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Simple Runner (Browser)</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #1a1a2e;
+      color: #eee;
+      font-family: system-ui, -apple-system, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    h1 { margin-bottom: 8px; font-weight: 600; }
+    p { margin-bottom: 16px; opacity: 0.8; }
+    canvas {
+      background: #87ceeb;
+      border-radius: 8px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+      max-width: 100%;
+      image-rendering: pixelated;
+    }
+    .hint { margin-top: 12px; font-size: 14px; opacity: 0.7; }
+  </style>
+</head>
+<body>
+  <h1>Simple Runner</h1>
+  <p>Space / Click / Tap to jump &middot; Survive as long as you can</p>
+  <canvas id="game" width="800" height="400"></canvas>
+  <p class="hint">High score is saved in your browser (localStorage)</p>
+
+  <script>
+    const canvas = document.getElementById("game");
+    const ctx = canvas.getContext("2d");
+
+    const WIDTH = 800, HEIGHT = 400;
+    const GROUND = 50;
+    const GRAVITY = 0.8;
+    const JUMP = -15;
+    let speed = 6;
+    const SPAWN_EVERY = 90;
+
+    let player = { x: 100, y: HEIGHT - GROUND - 50, w: 40, h: 50, vy: 0, onGround: true, score: 0 };
+    let obstacles = [];
+    let frame = 0;
+    let gameOver = false;
+    let highscore = parseInt(localStorage.getItem("runnerHigh") || "0", 10);
+
+    // Simple Web Audio beeps
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    let audioCtx = null;
+    function beep(freq, dur, type = "sine") {
+      try {
+        if (!audioCtx) audioCtx = new AudioCtx();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0.25, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + dur);
+      } catch (e) {}
+    }
+
+    function jump() {
+      if (gameOver) {
+        // restart
+        player = { x: 100, y: HEIGHT - GROUND - 50, w: 40, h: 50, vy: 0, onGround: true, score: 0 };
+        obstacles = [];
+        frame = 0;
+        gameOver = false;
+        speed = 6;
+        return;
+      }
+      if (player.onGround) {
+        player.vy = JUMP;
+        player.onGround = false;
+        beep(600, 0.12);
+      }
+    }
+
+    window.addEventListener("keydown", e => {
+      if (e.code === "Space" || e.code === "ArrowUp") {
+        e.preventDefault();
+        jump();
+      }
+    });
+    canvas.addEventListener("pointerdown", jump);
+
+    function spawn() {
+      const w = 25 + Math.random() * 20;
+      const h = 40 + Math.random() * 40;
+      obstacles.push({ x: WIDTH + 10, y: HEIGHT - GROUND - h, w, h, passed: false });
+    }
+
+    function update() {
+      if (gameOver) return;
+
+      frame++;
+      if (frame % SPAWN_EVERY === 0) spawn();
+
+      // difficulty
+      speed = 6 + Math.floor(player.score / 10) * 0.4;
+
+      player.vy += GRAVITY;
+      player.y += player.vy;
+      if (player.y >= HEIGHT - GROUND - player.h) {
+        player.y = HEIGHT - GROUND - player.h;
+        player.vy = 0;
+        player.onGround = true;
+      }
+
+      for (let i = obstacles.length - 1; i >= 0; i--) {
+        const o = obstacles[i];
+        o.x -= speed;
+        if (o.x + o.w < 0) {
+          obstacles.splice(i, 1);
+          continue;
+        }
+        if (!o.passed && o.x + o.w < player.x) {
+          o.passed = true;
+          player.score++;
+          beep(900, 0.08);
+          if (player.score > highscore) {
+            highscore = player.score;
+            localStorage.setItem("runnerHigh", highscore);
+          }
+        }
+        // collision
+        if (
+          player.x < o.x + o.w &&
+          player.x + player.w > o.x &&
+          player.y < o.y + o.h &&
+          player.y + player.h > o.y
+        ) {
+          gameOver = true;
+          beep(150, 0.3, "square");
+          if (player.score > highscore) {
+            highscore = player.score;
+            localStorage.setItem("runnerHigh", highscore);
+          }
+        }
+      }
+    }
+
+    function draw() {
+      // sky
+      ctx.fillStyle = "#87ceeb";
+      ctx.fillRect(0, 0, WIDTH, HEIGHT);
+
+      // ground
+      ctx.fillStyle = "#8b4513";
+      ctx.fillRect(0, HEIGHT - GROUND, WIDTH, GROUND);
+      ctx.strokeStyle = "#000";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(0, HEIGHT - GROUND);
+      ctx.lineTo(WIDTH, HEIGHT - GROUND);
+      ctx.stroke();
+
+      // player
+      ctx.fillStyle = "#228b22";
+      ctx.fillRect(player.x, player.y, player.w, player.h);
+      ctx.fillStyle = "#000";
+      ctx.beginPath();
+      ctx.arc(player.x + 28, player.y + 15, 5, 0, Math.PI * 2);
+      ctx.fill();
+
+      // obstacles
+      ctx.fillStyle = "#dc143c";
+      for (const o of obstacles) {
+        ctx.fillRect(o.x, o.y, o.w, o.h);
+      }
+
+      // UI
+      ctx.fillStyle = "#000";
+      ctx.font = "28px Arial";
+      ctx.fillText("Score: " + player.score, 20, 36);
+      ctx.fillStyle = "#ffd700";
+      ctx.fillText("High: " + highscore, 20, 70);
+
+      if (gameOver) {
+        ctx.fillStyle = "rgba(0,0,0,0.45)";
+        ctx.fillRect(0, 0, WIDTH, HEIGHT);
+        ctx.fillStyle = "#dc143c";
+        ctx.font = "bold 48px Arial";
+        ctx.textAlign = "center";
+        ctx.fillText("GAME OVER", WIDTH / 2, HEIGHT / 2 - 20);
+        ctx.fillStyle = "#fff";
+        ctx.font = "24px Arial";
+        ctx.fillText("Space / Click to restart", WIDTH / 2, HEIGHT / 2 + 30);
+        ctx.textAlign = "left";
+      }
+    }
+
+    function loop() {
+      update();
+      draw();
+      requestAnimationFrame(loop);
+    }
+    loop();
+  </script>
+</body>
+</html>

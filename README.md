@@ -1,66 +1,92 @@
 # Simple Runner Game
 
-A simple endless runner game built from scratch with **Python + Pygame**.
+A simple endless runner built from scratch with **Python + Pygame** and a pure **browser version** (no install).
 
-Jump over red obstacles, survive as long as you can, and beat your high score!
+Jump over obstacles, rack up points, beat your high score!
 
 ## Features
-- Smooth jumping physics
+
+- Smooth jumping physics + gravity
 - Randomly sized obstacles
-- Score tracking
+- Score + persistent high score
+- Procedural sound effects (jump / score / crash)
 - Game Over + instant restart
-- Clean, beginner-friendly code
+- Increasing difficulty (browser version)
+- GitHub Actions CI that verifies the Python code
 
-## How to Run
+## Quick Start (Python)
 
-### 1. Clone the repo
 ```bash
 git clone https://github.com/sereiyani/simple-runner-game.git
 cd simple-runner-game
-```
-
-### 2. Install dependencies
-```bash
 pip install -r requirements.txt
-```
-
-### 3. Play!
-```bash
 python runner.py
 ```
 
-Or use the convenience scripts:
+Or:
 
 ```bash
-# Shell script
-chmod +x run.sh
-./run.sh
-
-# Makefile
+make install
 make run
+# or
+./run.sh
 ```
 
-## Controls
-| Key        | Action              |
-|------------|---------------------|
+**Controls**
+
+| Key | Action |
+|-----|--------|
 | `SPACE` or `↑` | Jump / Restart after Game Over |
-| `ESC`      | Quit                |
+| `ESC` | Quit |
+
+High score is saved to `highscore.txt` in the same folder.
+
+## Browser Version (zero install)
+
+Open the file directly or host it:
+
+```bash
+# just open in any browser
+open web/index.html          # macOS
+start web/index.html        # Windows
+xdg-open web/index.html     # Linux
+```
+
+Or enable **GitHub Pages**:
+1. Go to the repository **Settings → Pages**
+2. Source: Deploy from a branch → `main` → `/docs` or root (you can move `web/index.html` to root if you prefer)
+3. After a minute the game will be live at `https://sereiyani.github.io/simple-runner-game/`
+
+The browser version uses the Web Audio API for beeps and `localStorage` for the high score. Works on desktop and mobile (tap to jump).
 
 ## Project Structure
+
 ```
 simple-runner-game/
-├── runner.py          # Main game code
-├── requirements.txt   # Dependencies
-├── run.sh             # One-click run script
-├── Makefile           # make run / make install
+├── runner.py              # Desktop game (Pygame)
+├── web/
+│   └── index.html         # Browser version (Canvas + JS)
+├── requirements.txt
+├── run.sh
+├── Makefile
+├── .github/workflows/ci.yml
 └── README.md
 ```
 
-## Next Ideas
-- Add sound effects
-- Animated sprites
-- Increasing difficulty
-- High score saving
-- Different obstacle types
+## CI
 
-Enjoy and happy coding!
+Every push/PR runs a small GitHub Actions workflow that:
+- Installs dependencies
+- Verifies `pygame` imports
+- Checks Python syntax
+
+You can also trigger it manually from the **Actions** tab.
+
+## Next Ideas
+
+- Animated pixel-art sprites
+- More obstacle types (flying, double)
+- Background parallax / day-night cycle
+- Online leaderboard
+
+Enjoy!
